@@ -27,7 +27,6 @@ In order to understand how to approximate the density (normalized) of $f$, we wi
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
-set.seed(1)
 ```
 
 
@@ -38,6 +37,7 @@ Plot the densities of $f(x)$ and the Unif(0,1) on the same plot.
 Let's first create a sequence of points from 0 to 1, so that we can have a grid of points for plotting both of the proposed functions. 
 
 ```{r}
+set.seed(1)
 # grid of points
 x <- seq(0, 1, 10^-2)
 ```
@@ -48,10 +48,10 @@ fx <- function(x) sin(pi * x)^2
 # plot f(x)
 plot(fx, xlim = c(0,1), ylim = c(0,1.5), ylab = "f(x)", lwd = 2)
 
-# uniform distribution
+# add uniform distribution
 curve(dunif, add = TRUE, col = "blue", lwd = 2) 
 
-# beta distribution
+# add beta distribution
 curve(dbeta(x,2,2), add = TRUE, col = "red", lwd = 2)
 
 legend("bottom", legend = c(expression(paste("sin(",pi,"x)"^"2")),"Unif(0,1)",
@@ -71,19 +71,33 @@ According to the rejection sampling approach sample from f(x) using the Unif(0,1
 
 ```{r}
 # f = sin
-sim_fun <- function(f, 
+sim_fun <- function(f, # function of interest fx
                     envelope = "unif", # default = uniform
-                    par1 = 0, par2 = 1, 
+                    par1 = 0, par2 = 1, # parameters
                     n = 10^2, # simulation size
                     plot = TRUE){ # create plot
   
-  r_envelope <- match.fun(paste0("r", envelope))
-  d_envelope <- match.fun(paste0("d", envelope))
+  # r: n samples - x1, x2, ..., xn
+  # d: n samples - f(x1), f(x2), ..., f(xn)
   
-  proposal <- r_envelope(n, par1, par2)
-  density_ratio <- f(proposal) / d_envelope(proposal, par1, par2)
+  # paste0: create "runif" or "dbeta"
+  # match.fun find the function named "runif" or "dbeta"
+  r_envelope <- match.fun(paste0("r", envelope)) 
+  d_envelope <- match.fun(paste0("d", envelope)) 
   
-  samples <- proposal[runif(n) < density_ratio]
+  # runif(n, par1, par2) 
+  # dbeta(n, shape1, shape2)
+  proposal <- r_envelope(n, par1, par2) 
+  
+  # the bigger the density ratio, the more likely to accept the sample
+  # the better the enveloping function is
+  # density_ratio < 1
+  density_ratio <- f(proposal) / d_envelope(proposal, par1, par2) # f(x)/g(x)
+  
+  # if the density ratio is greater than a random draw from runif, accept the sample
+  # compare density with uniform distribution
+  # return Boolean: if True, keep in samples
+  samples <- proposal[runif(n) < density_ratio] 
   
   acceptance_ratio <- length(samples) / n
   
@@ -93,7 +107,7 @@ sim_fun <- function(f,
                        n, " samples from ", 
                        envelope, "(", par1, ",", par2,
                        ").\n Acceptance ratio: ",
-                       round(acceptance_ratio,2)), 
+                       round(acceptance_ratio, 2)), 
                        cex.main = 0.75)
   }
   
@@ -105,20 +119,33 @@ sim_fun <- function(f,
 par(mfrow = c(2,2), mar = rep(4, 4))
 unif_1 <- sim_fun(fx, envelope = "unif", par1 = 0, par2 = 1, n = 10^2) 
 unif_2 <- sim_fun(fx, envelope = "unif", par1 = 0, par2 = 1, n = 10^5)
-# ATTN: You will need to add in the Beta(2,2) densities on your own to finish task 4.
-```
-
-Figure 2: Comparision of the output of the rejection sampling for 100 versus 100,000 simulations with uniform and beta distributions as envelope functions.
-```{r}
-
-```
-
-```{r}
-par(mfrow = c(1,1))
 beta_1 <- sim_fun(fx, envelope = "beta", par1 = 2, par2 = 2, n = 10^2) 
 beta_2 <- sim_fun(fx, envelope = "beta", par1 = 2, par2 = 2, n = 10^5)
 ```
 
-# Remaining tasks
+Figure 2: Comparision of the output of the rejection sampling for 100 versus 100,000 simulations with uniform and beta distributions as envelope functions.
 
-Be sure to finish any remaining tasks for homework. 
+## Task 4
+Provide the four histograms from Tasks 2 and 3 using the Uniform(0,1) and the
+Beta(2,2) enveloping proposals. Provide the acceptance ratios. Provide commentary.
+
+When n = 100, the acceptance ratio from unif(0, 0) is 0.48, and the acceptance 
+ratio from beta(2, 2) is 0.41.
+When n = 1e5, the acceptance ratio from unif(0, 0) is 0.5, and the acceptance 
+ratio from beta(2, 2) is 0.5.
+
+When the sample size is big enough, the acceptance ratio from both the uniform 
+and beta are the same. However, when the sample size is small, the acceptance
+ratio from beta is lower than the uniform. 
+
+
+## Task 5
+Do you recommend the Uniform or the Beta(2,2) as a better enveloping function (or
+are they about the same)? If you were to try and find an enveloping function that
+had a high acceptance ratio, which one would you try and why? 
+
+It's hard to decide. First, when the sample size grows, both the uniform and Beta(2,2)has acceptance ratio of 0.5. Also, towards the center, the shapes of f(x) and beta(2,2) don't align well, so the uniform tends to have a higher density
+ratio than beta(2,2) in that region. While on the 2 sides, the shapes of f(x) and uniform don't align well, so the beta(2,2) tends to have a higher density ratio 
+than the uniform in that region.
+
+I would try a distribution that has similar shape to f(x), like a normal distribution with mean at 0.5.
